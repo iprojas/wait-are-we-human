@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Are we human?</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; }
+    #renderCanvas { width: 100%; height: 100%; touch-action: none; display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+  <!-- Optional: fflate UMD (lets the loader decompress when needed) -->
+  <script src="https://unpkg.com/fflate/umd/index.js"></script>
+
+  <script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true
+    });
+
+    const createScene = function () {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+
+      // Camera (orbit)
+      const camera = new BABYLON.ArcRotateCamera(
+        "cam",
+        -4.194678929469913,           // alpha (from your provided values)
+        0.9191578903842283,           // beta
+        6.632792244403908,            // radius
+        new BABYLON.Vector3(-0.8917128161125281, -0.7188214866999745, -2.9081342939750674),
+        scene
+      );
+      camera.wheelDeltaPercentage = 0.01;
+      camera.attachControl(canvas, true);
+
+      // Debug: print starting camera pivot (target) and computed position
+      console.log("Camera initial values:");
+      console.log("  target (pivot):", camera.target);
+      console.log("  alpha:", camera.alpha, "beta:", camera.beta, "radius:", camera.radius);
+      console.log("  position:", camera.position);
+
+      // Also log whenever the camera view changes so you can inspect exact values in realtime
+      camera.onViewMatrixChangedObservable.add(() => {
+        console.log("Camera updated -> target:", camera.target, "position:", camera.position, "alpha:", camera.alpha, "beta:", camera.beta, "radius:", camera.radius);
+      });
+
+      // A tiny light (splats are unlit, this is just for the mirror material)
+      const light = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+    //   light.intensity = 0.6;
+
+      // Mirror ground
+      const ground = BABYLON.MeshBuilder.CreateGround("mirrorGround", { width: 10, height: 10 }, scene);
+      ground.position.y = -1;
+
+      const mirrorMat = new BABYLON.StandardMaterial("mirrorMat", scene);
+      mirrorMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+      mirrorMat.specularColor = new BABYLON.Color3(0, 0, 0);
+
+      const mirrorTex = new BABYLON.MirrorTexture("mirror", { ratio: 1 }, scene, true);
+      // Plane y = -1 (normal pointing up)
+      mirrorTex.mirrorPlane = new BABYLON.Plane(0, -1, 0, -1);
+      mirrorTex.adaptiveBlurKernel = 0;
+      mirrorMat.reflectionTexture = mirrorTex;
+
+      ground.material = mirrorMat;
+
+      // Load the Gaussian splat (expects egg2.splat next to this HTML)
+      BABYLON.SceneLoader.ImportMesh(
+        "",        // mesh names (empty = all)
+        "",        // rootUrl
+        "model.splat",
+        scene,
+        function (meshes) {
+          const splatRoot = meshes[0];
+          splatRoot.name = "splat";
+          splatRoot.position = new BABYLON.Vector3(-1, -1, -3);
+          splatRoot.rotationQuaternion = BABYLON.Quaternion.Identity();
+
+          // Reflect the splat in the mirror
+          mirrorTex.renderList = [splatRoot];
+        }
+      );
+
+      // (Optional) WebXR in one line:
+      // scene.createDefaultXRExperienceAsync({ disableDefaultUI: true });
+
+      return scene;
+    };
+
+    const scene = createScene();
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener("resize", () => engine.resize());
+  </script>
+</body>
+</html>

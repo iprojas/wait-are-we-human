@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Document</title>
+</head>
+<body>
+    <style> body {margin: 0; background: #000;} </style>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.178.0/three.module.js",
+      "@sparkjsdev/spark": "https://sparkjs.dev/releases/spark/0.1.9/spark.module.js"
+    }
+  }
+</script>
+<script type="module">
+  import * as THREE from "three";
+  import { SplatMesh } from "@sparkjsdev/spark";
+  import { Reflector } from "https://cdn.jsdelivr.net/npm/three@0.178.0/examples/jsm/objects/Reflector.js";
+  import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.178.0/examples/jsm/controls/OrbitControls.js";
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+  // renderer: ensure no tone-mapping and use sRGB encoding so colors are preserved in the render target
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+//   renderer.toneMapping = THREE.NoToneMapping;
+  document.body.appendChild(renderer.domElement)
+
+  // splat (butterfly)
+  const splatURL = "egg2.splat";
+  const butterfly = new SplatMesh({ url: splatURL });
+  butterfly.quaternion.set(1, 0, 0, 0);
+  butterfly.position.set(0, -1, -3);
+//    butterfly.rotation.set(0, 0, Math.PI);
+  scene.add(butterfly);
+
+  // reflective perfect mirror ground using THREE.Reflector
+  const planeSize = 10;
+  const planeGeo = new THREE.PlaneGeometry(planeSize, planeSize);
+
+  const reflector = new Reflector(planeGeo, {
+    clipBias: 0.003,
+    textureWidth: Math.floor(window.innerWidth * window.devicePixelRatio),
+    textureHeight: Math.floor(window.innerHeight * window.devicePixelRatio),
+    color: 0x000000 // use white so the reflection is not tinted
+  });
+
+  // place horizontal under butterfly
+  reflector.rotation.x = -Math.PI / 2;
+  reflector.position.y = -1;
+  scene.add(reflector);
+
+  // make sure the reflector's render target uses sRGB encoding to match renderer.outputEncoding
+  const rt = reflector.getRenderTarget && reflector.getRenderTarget();
+  if (rt && rt.texture) {
+    rt.texture.encoding = THREE.sRGBEncoding;
+  }
+
+  // If the Reflector material exists, ensure it's not tinting the texture:
+  if (reflector.material && reflector.material.uniforms && reflector.material.uniforms.color) {
+    reflector.material.uniforms.color.value.setHex(0x444444);
+  }
+
+  // position camera so we see both butterfly and its reflection
+  camera.position.set(0, 1, 2);
+  camera.lookAt(0, 0, -3);
+
+  // Orbit controls so the user can orbit around the splat with mouse
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, -1, -3);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.12;
+  controls.update();
+
+  // handle resize (update renderer, camera, and reflector render target)
+  window.addEventListener('resize', () => {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+
+    if (reflector.getRenderTarget) {
+      const rt2 = reflector.getRenderTarget();
+      if (rt2 && rt2.setSize) {
+        rt2.setSize(Math.floor(w * window.devicePixelRatio), Math.floor(h * window.devicePixelRatio));
+        if (rt2.texture) rt2.texture.encoding = THREE.sRGBEncoding;
+      }
+    }
+  });
+
+  renderer.setAnimationLoop(function animate(time) {
+    // // rotate the splat
+    // butterfly.rotation.z += 0.01;
+
+    // update controls (damping)
+    controls.update();
+
+    // render
+    renderer.render(scene, camera);
+  });
+</script>
+</body>
+</html>
