@@ -38,6 +38,9 @@
         scene
       );
       camera.wheelDeltaPercentage = 0.01;
+      // Restrict camera to stay above the mirror plane
+      camera.lowerBetaLimit = 0.1; // Minimum angle from horizontal (prevents looking from below)
+      camera.upperBetaLimit = Math.PI / 2; // Maximum angle (straight down)
       camera.attachControl(canvas, true);
 
       // Debug: print starting camera pivot (target) and computed position
