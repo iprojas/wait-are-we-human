@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Are we human?</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; }
+    #renderCanvas { width: 100%; height: 100%; touch-action: none; display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="renderCanvas"></canvas>
+
+  <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  <script src="https://cdn.babylonjs.com/babylonjs.materials.min.js"></script>
+  <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+  <script src="https://unpkg.com/fflate/umd/index.js"></script>
+
+  <script>
+    const canvas = document.getElementById("renderCanvas");
+    const engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true
+    });
+
+    const createScene = function () {
+      const scene = new BABYLON.Scene(engine);
+      scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
+
+      const camera = new BABYLON.ArcRotateCamera("cam", -4.194678929469913, 0.9191578903842283, 6.632792244403908, new BABYLON.Vector3(-0.8917128161125281, -0.7188214866999745, -2.9081342939750674), scene);
+      camera.wheelDeltaPercentage = 0.01;
+      camera.lowerBetaLimit = 0.1;
+      camera.upperBetaLimit = Math.PI / 2;
+      camera.attachControl(canvas, true);
+
+      const light = new BABYLON.HemisphericLight("hemi", new BABYLON.Vector3(0, 1, 0), scene);
+
+  const ground = BABYLON.MeshBuilder.CreateGround("mirrorGround", { width: 20, height: 20 }, scene);
+  ground.position.y = -1;
+  const mirrorMat = new BABYLON.StandardMaterial("mirrorMat", scene);
+  mirrorMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+  mirrorMat.specularColor = new BABYLON.Color3(0, 0, 0);
+  const mirrorTex = new BABYLON.MirrorTexture("mirror", { ratio: 1 }, scene, true);
+  mirrorTex.mirrorPlane = new BABYLON.Plane(0, -1, 0, -1);
+  mirrorTex.adaptiveBlurKernel = 2;
+  mirrorMat.reflectionTexture = mirrorTex;
+  ground.material = mirrorMat;
+
+  const textPlane = BABYLON.MeshBuilder.CreatePlane("textPlane", { width: 1, height: 1 }, scene);
+  textPlane.position = new BABYLON.Vector3(-1, 0.5, -4);
+  textPlane.rotation.x = Math.PI;
+  const textMaterial = new BABYLON.StandardMaterial("textMaterial", scene);
+  const webpTexture = new BABYLON.Texture("text.webp", scene, true, false);
+  webpTexture.hasAlpha = true; webpTexture.uScale = -1; webpTexture.uOffset = 1;
+  textMaterial.diffuseTexture = webpTexture; textMaterial.useAlphaFromDiffuseTexture = true;
+  textMaterial.specularColor = new BABYLON.Color3(0, 0, 0); textMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1);
+  textMaterial.backFaceCulling = true; textPlane.material = textMaterial;
+  webpTexture.onLoadObservable.add(() => {
+    const size = webpTexture.getSize();
+    if (size && size.width && size.height) {
+      const desiredHeight = 3; const aspect = size.width / size.height;
+      textPlane.scaling.x = aspect * desiredHeight; textPlane.scaling.y = desiredHeight;
+    } else { textPlane.scaling.x = 8; textPlane.scaling.y = 2; }
+  });
+
+      BABYLON.SceneLoader.ImportMesh("", "", "model.splat", scene, function(meshes) {
+        const splatRoot = meshes[0]; splatRoot.name = "splat"; splatRoot.position = new BABYLON.Vector3(-1, -1, -3); splatRoot.rotationQuaternion = BABYLON.Quaternion.Identity();
+        mirrorTex.renderList = [splatRoot];
+      });
+
+      
+
+      return scene;
+    };
+
+    const scene = createScene();
+    engine.runRenderLoop(() => scene.render());
+    window.addEventListener("resize", () => engine.resize());
+  </script>
+</body>
+</html>
